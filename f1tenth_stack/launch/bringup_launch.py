@@ -21,9 +21,10 @@
 # SOFTWARE.
 
 from launch import LaunchDescription
+from launch.conditions import IfCondition
 from launch_ros.actions import Node
 from launch.substitutions import Command
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.actions import DeclareLaunchArgument
 from launch.actions import IncludeLaunchDescription
 from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
@@ -52,6 +53,10 @@ def generate_launch_description():
         'mux.yaml'
     )
 
+    odom_la = DeclareLaunchArgument(
+        'odom_method',
+        default_value='lidar',
+        description='Specify odometry method, lidar or vesc')
     joy_la = DeclareLaunchArgument(
         'joy_config',
         default_value=joy_teleop_config,
@@ -69,7 +74,7 @@ def generate_launch_description():
         default_value=mux_config,
         description='Descriptions for ackermann mux configs')
 
-    ld = LaunchDescription([joy_la, vesc_la, sensors_la, mux_la])
+    ld = LaunchDescription([odom_la, joy_la, vesc_la, sensors_la, mux_la])
 
     joy_node = Node(
         package='joy',
@@ -93,7 +98,9 @@ def generate_launch_description():
         package='vesc_ackermann',
         executable='vesc_to_odom_node',
         name='vesc_to_odom_node',
-        parameters=[LaunchConfiguration('vesc_config')]
+        parameters=[LaunchConfiguration('vesc_config')],
+        condition=IfCondition(PythonExpression(["'",
+            LaunchConfiguration('odom_method'), "' == 'vesc'"])),
     )
     vesc_driver_node = Node(
         package='vesc_driver',
@@ -126,6 +133,38 @@ def generate_launch_description():
         name='static_baselink_to_laser',
         arguments=['0.27', '0.0', '0.11', '0.0', '0.0', '0.0', 'base_link', 'laser']
     )
+    lidar_odom_node = Node(
+        package="kiss_icp",
+        executable="odometry_node",
+        name="odometry_node",
+        remappings=[("pointcloud_topic", "point_cloud"),
+            ('odometry', 'odom')],
+        parameters=[
+            {
+                "odom_frame": "odom",
+                "child_frame": "base_link",
+                "max_range": 20.0,
+                "min_range": 0.5,
+                "deskew": False,
+                "max_points_per_voxel": 20,
+                "initial_threshold": 2.0,
+                "min_motion_th": 0.1,
+                "publish_odom_tf": True,
+                "publish_alias_tf": True,
+            }
+        ],
+        condition=IfCondition(PythonExpression(["'",
+            LaunchConfiguration('odom_method'), "' == 'lidar'"])),
+    )
+    laser_to_pc_node = Node(
+        package='pointcloud_to_laserscan',
+        executable='laserscan_to_pointcloud_node',
+        name='laserscan_to_pointcloud',
+        remappings=[('scan_in', 'scan'),
+                    ('cloud', 'point_cloud')],
+        condition=IfCondition(PythonExpression(["'",
+            LaunchConfiguration('odom_method'), "' == 'lidar'"])),
+    )
 
     # finalize
     ld.add_action(joy_node)
@@ -133,6 +172,8 @@ def generate_launch_description():
     ld.add_action(ackermann_to_vesc_node)
     ld.add_action(vesc_to_odom_node)
     ld.add_action(vesc_driver_node)
+    ld.add_action(lidar_odom_node)
+    ld.add_action(laser_to_pc_node)
     # ld.add_action(throttle_interpolator_node)
     ld.add_action(urg_node)
     ld.add_action(ackermann_mux_node)

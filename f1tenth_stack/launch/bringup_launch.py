@@ -144,7 +144,7 @@ def generate_launch_description():
                 "odom_frame": "odom",
                 "child_frame": "base_link",
                 "max_range": 20.0,
-                "min_range": 0.5,
+                "min_range": 2.0,
                 "deskew": False,
                 "max_points_per_voxel": 20,
                 "initial_threshold": 2.0,

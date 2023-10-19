@@ -1,0 +1,21 @@
+
+<?xml version="1.0"?>
+<package format="3">
+  <name>time_profiling_spinner</name>
+  <version>0.0.1</version>
+  <description>The time_profiling_spinner package</description>
+
+  <maintainer email="your_email@example.com">Your Name</maintainer>
+
+  <license>TODO: License declaration</license>
+
+  <depend>rclcpp</depend>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <build_depend>rclcpp</build_depend>
+  <exec_depend>rclcpp</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -17,14 +17,14 @@
 #include <linux/perf_event.h>
 #include <asm/unistd.h>
 #include <unistd.h>
-#include <sched_server/CallbackProfile.h>
 #include <rclcpp/rclcpp.hpp>
+#include "callback_profile/msg/callback_profile.hpp"
 
 #define NUM_PERF_EVENTS 7
 
 #define USE_DEFAULT_CALLBACK_FREQ 0
 
-class TimeProfilingSpinner : public rclcpp::Node
+class TimeProfilingSpinner
 {
 public:
     enum class OperationMode {
@@ -33,26 +33,15 @@ public:
         PERIODIC
     };
 
-    TimeProfilingSpinner(OperationMode op_mode,
-        double callbackCheckFrequency = USE_DEFAULT_CALLBACK_FREQ,
-        bool useCompanionThread = false,
-        std::function<void()> funcToCall = std::function<void()>(),
-        std::string fname_post = "");
+    TimeProfilingSpinner(std::shared_ptr<rclcpp::Node> node_handle);
 
     void perfProfileInit();
 
     void perfProfileStart();
 
-    void perfProfileEnd(sched_server::CallbackProfile& cb_prof_info);
-
-    std::chrono::system_clock::time_point getInitTargetTime();
+    void perfProfileEnd(callback_profile::msg::CallbackProfile& cb_prof_info);
 
     void spinAndProfileUntilShutdown();
-
-    int callAvailableOneByOne(
-            std::chrono::system_clock::time_point timeout);
-
-    void saveProfilingData() {return;}
 
     static void signalHandler(int sig);
 
@@ -76,20 +65,13 @@ public:
 
 
 private:
-    OperationMode op_mode_;
-    std::function<void()> funcToCall_;
-    double callbackCheckFrequency_;
-    std::string fname_post_;
+    //OperationMode op_mode_;
+    std::shared_ptr<rclcpp::Node> cb_prof_nh;
 
     long perfGroupFd;
     std::vector<long> perfFileDescriptors;
     std::map<uint64_t, std::string> perfEventIDsMap;
-    rclcpp::Publisher<sched_server::CallbackProfile>::SharedPtr cbProfPublisher;
-    uint64_t period_id;
-
-    bool synchronizedStart_;
-
-    sched_param spinner_sched_param_;
+    int period_id;
 };
 
 #endif //SCHED_SERVICE_H
